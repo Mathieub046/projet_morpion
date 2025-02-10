@@ -1,6 +1,6 @@
 import socket
 
-def principal(ip_serveur):
+def main(ip_serveur):
     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_client.connect((ip_serveur, 5555))
     print("Connecté au serveur")
@@ -18,4 +18,4 @@ def principal(ip_serveur):
     socket_client.close()
 
 if __name__ == "__main__":
-    principal('localhost')
+    main('localhost')

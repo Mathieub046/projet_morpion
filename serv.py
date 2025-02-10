@@ -124,7 +124,7 @@ def gerer_observateur(socket_observateur, grilles, grille_mise_a_jour, observate
         socket_observateur.close()
         print("Un observateur déconnecté")
 
-def principal():
+def main():
     socket_serveur = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_serveur.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     socket_serveur.bind(('localhost', 5555))
@@ -154,4 +154,4 @@ def principal():
         print("Aucun autre observateur connecté")
 
 if __name__ == "__main__":
-    principal()
+    main()
