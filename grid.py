@@ -1,55 +1,50 @@
-symbols = [' ', 'O', 'X']
-EMPTY = 0
-J1 = 1
-J2 = 2
-NB_CELLS = 9
+symboles = [' ', 'O', 'X']
+VIDE = 0
+JOUEUR1 = 1
+JOUEUR2 = 2
+NB_CELLES = 9
 
 class grid:
-    cells = []
-    
     def __init__(self):
-        self.cells = []
-        for i in range(NB_CELLS):
-            self.cells.append(EMPTY)
+        self.cellules = [VIDE] * NB_CELLES
 
-    def play(self, player, cellNum):
-        assert(0 <= cellNum and cellNum < NB_CELLS)
-        assert(self.cells[cellNum] == EMPTY)
-        self.cells[cellNum] = player
+    def jouer(self, joueur, num_cellule):
+        assert 0 <= num_cellule < NB_CELLES
+        assert self.cellules[num_cellule] == VIDE
+        self.cellules[num_cellule] = joueur
 
-    def display(self):
-        """ Affiche la grille sous forme de tableau de morpion """
-        print(" -------------")
+    def afficher(self):
+        print("-------------")
         for i in range(3):
-            print(" | ", end="")
-            for j in range(3):
-                print(f"{symbols[self.cells[i * 3 + j]]} | ", end="")
-            print("\n -------------")
+            print("|", symboles[self.cellules[i * 3]], "|", symboles[self.cellules[i * 3 + 1]], "|", symboles[self.cellules[i * 3 + 2]], "|")
+            print("-------------")
 
-    def winner(self, player):
-        assert(player == J1 or player == J2)
-        # Vérification des lignes horizontales
+    def afficher_chaine(self):
+        resultat = "-------------\n"
+        for i in range(3):
+            resultat += f"| {symboles[self.cellules[i * 3]]} | {symboles[self.cellules[i * 3 + 1]]} | {symboles[self.cellules[i * 3 + 2]]} |\n"
+            resultat += "-------------\n"
+        return resultat
+
+    def gagnant(self, joueur):
+        assert joueur in (JOUEUR1, JOUEUR2)
         for y in range(3):
-            if self.cells[y*3] == player and self.cells[y*3+1] == player and self.cells[y*3+2] == player:
+            if self.cellules[y * 3] == joueur and self.cellules[y * 3 + 1] == joueur and self.cellules[y * 3 + 2] == joueur:
                 return True
-        # Vérification des colonnes
         for x in range(3):
-            if self.cells[x] == player and self.cells[3+x] == player and self.cells[6+x] == player:
+            if self.cellules[x] == joueur and self.cellules[3 + x] == joueur and self.cellules[6 + x] == joueur:
                 return True
-        # Vérification des diagonales
-        if self.cells[0] == player and self.cells[4] == player and self.cells[8] == player:
+        if self.cellules[0] == joueur and self.cellules[4] == joueur and self.cellules[8] == joueur:
             return True
-        if self.cells[2] == player and self.cells[4] == player and self.cells[6] == player:
+        if self.cellules[2] == joueur and self.cellules[4] == joueur and self.cellules[6] == joueur:
             return True
         return False
 
-    def gameOver(self):
-        """ Retourne l'état du jeu : -1 si en cours, EMPTY si match nul, J1/J2 si victoire """
-        if self.winner(J1):
-            return J1
-        if self.winner(J2):
-            return J2
-        for i in range(NB_CELLS):
-            if self.cells[i] == EMPTY:
-                return -1
-        return 0
+    def partie_terminee(self):
+        if self.gagnant(JOUEUR1):
+            return JOUEUR1
+        if self.gagnant(JOUEUR2):
+            return JOUEUR2
+        if all(cellule != VIDE for cellule in self.cellules):
+            return 0
+        return -1
