@@ -1,50 +1,65 @@
-symboles = [' ', 'O', 'X']
-VIDE = 0
-JOUEUR1 = 1
-JOUEUR2 = 2
-NB_CELLES = 9
+# grid.py
+
+# Définir les symboles des joueurs et les constantes
+symbols = [' ', 'O', 'X']
+EMPTY = 0
+J1 = 1
+J2 = 2
+NB_CELLS = 9
 
 class grid:
     def __init__(self):
-        self.cellules = [VIDE] * NB_CELLES
+        # Initialiser la grille avec des cases vides
+        self.cells = [EMPTY] * NB_CELLS
+    
+    def reset(self):
+        """Réinitialise la grille à son état initial"""
+        self.cells = [EMPTY] * NB_CELLS
 
-    def jouer(self, joueur, num_cellule):
-        assert 0 <= num_cellule < NB_CELLES
-        assert self.cellules[num_cellule] == VIDE
-        self.cellules[num_cellule] = joueur
+    def play(self, player, cellNum):
+        """Permet à un joueur de jouer son coup"""
+        assert(0 <= cellNum < NB_CELLS)
+        assert(self.cells[cellNum] == EMPTY)
+        self.cells[cellNum] = player
 
-    def afficher(self):
-        print("-------------")
+    def display(self):
+        """Affiche la grille actuelle"""
+        print(" -------------")
         for i in range(3):
-            print("|", symboles[self.cellules[i * 3]], "|", symboles[self.cellules[i * 3 + 1]], "|", symboles[self.cellules[i * 3 + 2]], "|")
-            print("-------------")
+            print(" | ", end="")
+            for j in range(3):
+                print(f"{symbols[self.cells[i * 3 + j]]} | ", end="")
+            print("\n -------------")
 
-    def afficher_chaine(self):
-        resultat = "-------------\n"
-        for i in range(3):
-            resultat += f"| {symboles[self.cellules[i * 3]]} | {symboles[self.cellules[i * 3 + 1]]} | {symboles[self.cellules[i * 3 + 2]]} |\n"
-            resultat += "-------------\n"
-        return resultat
-
-    def gagnant(self, joueur):
-        assert joueur in (JOUEUR1, JOUEUR2)
+    def winner(self, player):
+        """Vérifie si un joueur a gagné"""
+        assert(player == J1 or player == J2)
+        
+        # Vérification des lignes
         for y in range(3):
-            if self.cellules[y * 3] == joueur and self.cellules[y * 3 + 1] == joueur and self.cellules[y * 3 + 2] == joueur:
+            if self.cells[y * 3] == player and self.cells[y * 3 + 1] == player and self.cells[y * 3 + 2] == player:
                 return True
+        
+        # Vérification des colonnes
         for x in range(3):
-            if self.cellules[x] == joueur and self.cellules[3 + x] == joueur and self.cellules[6 + x] == joueur:
+            if self.cells[x] == player and self.cells[3 + x] == player and self.cells[6 + x] == player:
                 return True
-        if self.cellules[0] == joueur and self.cellules[4] == joueur and self.cellules[8] == joueur:
+        
+        # Vérification des diagonales
+        if self.cells[0] == player and self.cells[4] == player and self.cells[8] == player:
             return True
-        if self.cellules[2] == joueur and self.cellules[4] == joueur and self.cellules[6] == joueur:
+        if self.cells[2] == player and self.cells[4] == player and self.cells[6] == player:
             return True
+        
         return False
 
-    def partie_terminee(self):
-        if self.gagnant(JOUEUR1):
-            return JOUEUR1
-        if self.gagnant(JOUEUR2):
-            return JOUEUR2
-        if all(cellule != VIDE for cellule in self.cellules):
-            return 0
-        return -1
+    def gameOver(self):
+        """Vérifie si le jeu est terminé"""
+        if self.winner(J1):
+            return J1  # Joueur 1 a gagné
+        if self.winner(J2):
+            return J2  # Joueur 2 a gagné
+        for i in range(NB_CELLS):
+            if self.cells[i] == EMPTY:
+                return -1  # Partie en cours
+        return 0  # Match nul
