@@ -1,113 +1,102 @@
-# serv.py
-
 import socket
-from grid import *  # Importation de la classe grid
+import time
+import random
+from threading import Thread
+from grid import *
 
-def get_masked_grid(grid, player, reveal_opponent=False):
-    """Retourne une version de la grille masquée ou complète."""
-    masked_cells = [
-        cell if cell == player or cell == EMPTY or reveal_opponent else EMPTY
-        for cell in grid.cells
-    ]
-    grid_state = "\n".join([
-        " -------------",
-        f" | {symbols[masked_cells[0]]} | {symbols[masked_cells[1]]} | {symbols[masked_cells[2]]} | ",
-        " -------------",
-        f" | {symbols[masked_cells[3]]} | {symbols[masked_cells[4]]} | {symbols[masked_cells[5]]} | ",
-        " -------------",
-        f" | {symbols[masked_cells[6]]} | {symbols[masked_cells[7]]} | {symbols[masked_cells[8]]} | ",
-        " -------------"
-    ])
-    return grid_state
-
-def main():
-    # Création de la socket serveur
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    
-    hostname = socket.gethostname()
-    s.bind((socket.gethostbyname(hostname), 2910))  # Écoute sur le port 2910
-    s.listen(2)  # Le serveur attend 2 clients
-    
-    print("Serveur en attente de connexions...")
-    clients = []
-
-    # Acceptation des connexions des deux joueurs
-    while len(clients) < 2:
-        client_socket, client_address = s.accept()
-        clients.append(client_socket)
-        print(f"Connexion acceptée de {client_address}")
-
-    print("Les deux joueurs sont connectés. Le jeu commence !")
+def handle_client(client_socket, player, grids, turn, other_socket, scores, grid_updated, observers):
+    """Gère un joueur, reçoit ses coups et met à jour la partie."""
+    client_socket.send("Do you want to play yourself or let a bot play? (type 'me' or 'bot'): ".encode())
+    player_choice = client_socket.recv(1024).decode().strip().lower()
+    is_bot = (player_choice == 'bot')
+    print(f"Player {player} chose {'bot' if is_bot else 'human'}")
     
     while True:
-        current_player = 0  # Joueur 1 commence
-        game_grid = grid()  # Créer une nouvelle grille
+        client_socket.send(f"Welcome Player {player}\n".encode())
+        client_socket.send(grids[player].display_string().encode())
         
-        while True:
-            player = current_player + 1  # Joueur courant (1 ou 2)
-            client = clients[current_player]
+        while grids[0].game_over() == -1:
+            if turn[0] == player:
+                client_socket.send("Your turn!\n".encode())
+                
+                if is_bot:
+                    move = random.choice([i for i, cell in enumerate(grids[0].cells) if cell == EMPTY])
+                    client_socket.send(f"Bot played move {move}\n".encode())
+                    grids[player].cells[move] = player
+                    grids[0].play(player, move)
+                    grid_updated[0] = True
+                else:
+                    move = -1
+                    while move < 0 or move >= NB_CELLS or grids[0].cells[move] != EMPTY:
+                        client_socket.send("Enter your move (0-8): ".encode())
+                        try:
+                            move = int(client_socket.recv(1024).decode().strip())
+                        except ValueError:
+                            client_socket.send("Invalid input! Enter a number between 0-8.\n".encode())
+                            continue
+                    grids[player].cells[move] = player
+                    grids[0].play(player, move)
+                    grid_updated[0] = True
+                    
+                client_socket.send(grids[player].display_string().encode())
+                turn[0] = J2 if player == J1 else J1
+            else:
+                client_socket.send("Waiting for the other player...\n".encode())
             
-            while True:  # Boucle pour s'assurer qu'un coup valide est joué
-                # Envoyer la version appropriée de la grille
-                masked_grid = get_masked_grid(game_grid, player, False)
-                client.send(f"Votre tour !\n{masked_grid}".encode())
-                
-                # Recevoir le coup du joueur
-                data = client.recv(1024).decode()
-                if not data:
-                    break
-                
-                # Traitement du coup
-                shot = int(data.strip())
-                if game_grid.cells[shot] == EMPTY:
-                    # Jouer le coup si la case est vide
-                    game_grid.play(player, shot)
-                    break  # Sortir de la boucle car un coup valide a été joué
-                else:
-                    client.send(f"Cette case ({shot}) est déjà occupée !\n{masked_grid}".encode())
-
-            # Vérifier la fin du jeu
-            if game_grid.gameOver() != -1:
-                # Le jeu est terminé
-                result_message = ""
-                if game_grid.gameOver() == 0:
-                    result_message = "Match nul !"
-                elif game_grid.gameOver() == player:
-                    result_message = "Vous avez gagné !"
-                else:
-                    result_message = "Vous avez perdu !"
-                
-                # Informer les deux joueurs du résultat final
-                for i, c in enumerate(clients):
-                    final_grid = get_masked_grid(game_grid, i + 1, True)
-                    if game_grid.gameOver() == i + 1:
-                        c.send(f"{result_message}\nVoici la grille finale :\n{final_grid}".encode())
-                    else:
-                        c.send(f"Vous avez perdu !\nVoici la grille finale :\n{final_grid}".encode())
-
-                # Demander si les joueurs veulent recommencer
-                for c in clients:
-                    c.send("Voulez-vous jouer une autre partie ? (oui/non)".encode())
-                
-                responses = [c.recv(1024).decode().strip().lower() for c in clients]
-                if all(response == "oui" for response in responses):
-                    # Réinitialiser la grille et continuer à jouer
-                    game_grid.reset()
-                    continue
-                else:
-                    break  # Quitter la boucle principale du jeu
-
-            # Changer de joueur
-            current_player = 1 - current_player  # Alterner entre joueur 1 et joueur 2
-
-        # Si le serveur reçoit une demande de quitter, on arrête
-        print("Une des parties est terminée, les joueurs ne veulent plus continuer.")
-        break
+            while turn[0] != player:
+                time.sleep(1)
+        
+        send_game_end(client_socket, other_socket, observers, grids, scores, player)
+        
+        client_socket.send("Do you want to play again? (yes/no): ".encode())
+        other_socket.send("Do you want to play again? (yes/no): ".encode())
+        response = client_socket.recv(1024).decode().strip().lower()
+        other_response = other_socket.recv(1024).decode().strip().lower()
+        
+        if response != "yes" or other_response != "yes":
+            client_socket.send("Thanks for playing!\n".encode())
+            other_socket.send("Thanks for playing!\n".encode())
+            for obs in observers:
+                obs.send("Players have ended the game. Thanks for watching!\n".encode())
+            break
+        
+        grids[0] = Grid()
+        grids[J1] = Grid()
+        grids[J2] = Grid()
     
-    # Fermer les connexions
-    for client in clients:
-        client.close()
+    client_socket.close()
+    other_socket.close()
+    for obs in observers:
+        obs.close()
+
+def main():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind(('localhost', 5555))
+    server_socket.listen(3)
+    print("Server listening on port 5555")
+    
+    grids = [Grid(), Grid(), Grid()]
+    turn = [J1]
+    scores = [0, 0]
+    grid_updated = [False]
+    observers = []
+    
+    client_socket1, _ = server_socket.accept()
+    print("Connection from player 1")
+    client_socket2, _ = server_socket.accept()
+    print("Connection from player 2")
+    
+    Thread(target=handle_client, args=(client_socket1, J1, grids, turn, client_socket2, scores, grid_updated, observers)).start()
+    Thread(target=handle_client, args=(client_socket2, J2, grids, turn, client_socket1, scores, grid_updated, observers)).start()
+    
+    try:
+        while True:
+            observer_socket, _ = server_socket.accept()
+            print("Connection from observer")
+            Thread(target=handle_observer, args=(observer_socket, grids, grid_updated, observers)).start()
+    except:
+        print("No observer connected")
 
 if __name__ == "__main__":
     main()
